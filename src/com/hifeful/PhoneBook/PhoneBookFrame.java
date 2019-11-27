@@ -1,28 +1,30 @@
 package com.hifeful.PhoneBook;
 
 import javax.swing.*;
+import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.table.TableColumn;
 import javax.swing.table.TableColumnModel;
+import javax.swing.table.TableModel;
+import javax.swing.table.TableRowSorter;
 import java.awt.*;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.awt.event.WindowListener;
+import java.io.File;
 import java.util.prefs.Preferences;
 
 public class PhoneBookFrame extends JFrame {
     private Preferences root;
     private Preferences node;
 
-    private static final int DEFAULT_WIDTH = 800;
+    private static final int DEFAULT_WIDTH = 600;
     private static final int DEFAULT_HEIGHT = 600;
     private int width;
     private int height;
 
     private JTable table;
     private ContactsTableModel tableModel;
-    private int[] columnsWidth = { 30, 150, 150, 150, 150, 300};
-
-    private int comeBack;
+    private int[] columnsWidth = { 150, 150, 150, 150, 300};
 
     public PhoneBookFrame()
     {
@@ -31,9 +33,9 @@ public class PhoneBookFrame extends JFrame {
 
         frameProperties();
 
-        createMenu();
-
         createTable();
+
+        createMenu();
 
         createButtons();
 
@@ -81,7 +83,77 @@ public class PhoneBookFrame extends JFrame {
         fileMenu.add(saveItem);
 
         var saveAsItem = new JMenuItem("Save As");
+        saveAsItem.addActionListener(event ->
+        {
+            var fileChooser = new JFileChooser();
+            fileChooser.setDialogTitle("Specify a file to save");
+            fileChooser.setCurrentDirectory(new File("."));
+            fileChooser.setFileFilter(new FileNameExtensionFilter("Data files (*.dat)", "dat"));
+            fileChooser.setAcceptAllFileFilterUsed(false);
+
+            int userSelection = fileChooser.showSaveDialog(this);
+
+            if (userSelection == JFileChooser.APPROVE_OPTION)
+            {
+                File fileToSave = fileChooser.getSelectedFile();
+                if (fileToSave.getAbsolutePath().endsWith(".dat"))
+                    tableModel.saveData(fileToSave);
+                else
+                {
+                    JOptionPane.showMessageDialog(this,
+                            "File extension must be .dat", "File extension error",
+                            JOptionPane.ERROR_MESSAGE);
+                }
+            }
+        });
         fileMenu.add(saveAsItem);
+
+        saveItem.addActionListener(event ->
+        {
+            if (!tableModel.getDataFile().exists())
+                saveAsItem.doClick();
+            else
+                tableModel.saveData(tableModel.getDataFile());
+        });
+
+        newItem.addActionListener(event ->
+        {
+            if (!tableModel.isEmpty())
+            {
+                int selection = JOptionPane.showConfirmDialog(this,
+                        "Do you want to save?", "New contact book",
+                        JOptionPane.YES_NO_CANCEL_OPTION, JOptionPane.QUESTION_MESSAGE);
+
+                if (selection == JOptionPane.YES_OPTION)
+                {
+                    saveItem.doClick();
+                }
+                else if (selection == JOptionPane.NO_OPTION)
+                {
+                    tableModel.setDataFile(new File(""));
+                    tableModel.clearRows();
+                    tableModel.fireTableDataChanged();
+                }
+            }
+
+        });
+
+        openItem.addActionListener(event ->
+        {
+            var fileChooser = new JFileChooser();
+            fileChooser.setCurrentDirectory(new File("."));
+            fileChooser.setFileFilter(new FileNameExtensionFilter("Data files (*.dat)", "dat"));
+            fileChooser.setAcceptAllFileFilterUsed(false);
+
+            int result = fileChooser.showOpenDialog(this);
+
+            if (result == JFileChooser.APPROVE_OPTION)
+            {
+                File selectedFile = fileChooser.getSelectedFile();
+                tableModel.openData(selectedFile);
+                tableModel.fireTableDataChanged();
+            }
+        });
 
         fileMenu.addSeparator();
 
@@ -100,7 +172,8 @@ public class PhoneBookFrame extends JFrame {
         var buttonPanel = new JPanel(new FlowLayout());
 
         var addButton = new JButton("Add Contact");
-        addButton.addActionListener(new AddContactDialog(this, tableModel));
+        var addContactDialog = new AddContactDialog(this, tableModel);
+        addButton.addActionListener(addContactDialog);
         buttonPanel.add(addButton);
 
         var deleteButton = new JButton("Delete Contact");
@@ -112,8 +185,6 @@ public class PhoneBookFrame extends JFrame {
             {
                 tableModel.removeRow(selectedRows[i]);
             }
-
-            tableModel.setDeletedIndexes(selectedRows.length);
 
             tableModel.fireTableDataChanged();
         });
@@ -128,8 +199,11 @@ public class PhoneBookFrame extends JFrame {
         table = new JTable(tableModel);
         table.getColumnModel().getColumn(1).setCellEditor(new TextCellEditor());
 
+        var sorter = new TableRowSorter<TableModel>(tableModel);
+        sorter.setSortable(4, false);
+        table.setRowSorter(sorter);
+
         TableColumnModel tableColumnModel = table.getColumnModel();
-        tableColumnModel.getColumn(0).setResizable(false);
 
         int i = 0;
         for (int width : columnsWidth)

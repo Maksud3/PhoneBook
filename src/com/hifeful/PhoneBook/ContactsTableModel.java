@@ -1,18 +1,19 @@
 package com.hifeful.PhoneBook;
 
 import javax.swing.table.AbstractTableModel;
+import java.io.*;
 import java.util.ArrayList;
 
 public class ContactsTableModel extends AbstractTableModel {
-    private String[] columnNames = { "№", "First name", "Surname", "Last name", "Phone number", "Address" };
+    private String[] columnNames = { "First name", "Surname", "Last name", "Phone number", "Address" };
+    private File dataFile;
 
     private ArrayList<ArrayList<Object>> rows;
-    private int deletedIndexes;
 
     public ContactsTableModel()
     {
         rows = new ArrayList<>();
-        deletedIndexes = 0;
+        dataFile = new File("");
     }
 
     public int getRowCount()
@@ -37,7 +38,7 @@ public class ContactsTableModel extends AbstractTableModel {
 
     @Override
     public boolean isCellEditable(int rowIndex, int columnIndex) {
-        return columnIndex != 0;
+        return true;
     }
 
     @Override
@@ -55,13 +56,56 @@ public class ContactsTableModel extends AbstractTableModel {
         rows.remove(index);
     }
 
-    public int getDeletedIndexes()
+    public void clearRows()
     {
-        return deletedIndexes;
+        rows.clear();
     }
 
-    public void setDeletedIndexes(int aDeletedIndexes)
+    public boolean isEmpty()
     {
-        deletedIndexes = aDeletedIndexes;
+        try
+        {
+             String result = (String)rows.get(0).get(0);
+        }
+        catch(IndexOutOfBoundsException e)
+        {
+            return true;
+        }
+        return false;
+    }
+
+    public File getDataFile()
+    {
+        return dataFile;
+    }
+
+    public void setDataFile(File aDataFile)
+    {
+        dataFile = aDataFile;
+    }
+
+    public void saveData(File aFileToSave)
+    {
+        dataFile = aFileToSave;
+        try (var out = new ObjectOutputStream(new FileOutputStream(aFileToSave)))
+        {
+            out.writeObject(rows);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void openData(File aFileToOpen)
+    {
+        dataFile = aFileToOpen;
+
+        try (var in = new ObjectInputStream(new FileInputStream(aFileToOpen)))
+        {
+            rows = (ArrayList<ArrayList<Object>>) in.readObject();
+        }
+        catch (IOException | ClassNotFoundException e)
+        {
+            e.printStackTrace();
+        }
     }
 }

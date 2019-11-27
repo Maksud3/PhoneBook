@@ -22,12 +22,7 @@ public class AddContactDialog extends JPanel implements ActionListener {
 
         setLayout(new BorderLayout());
 
-        var fieldsPanel = new JPanel(new GridLayout(6 ,2));
-
-        fieldsPanel.add(new JLabel("№: "));
-        var number = new JTextField(String.valueOf(table.getRowCount() + 1), 20);
-        number.setEditable(false);
-        fieldsPanel.add(number);
+        var fieldsPanel = new JPanel(new GridLayout(5 ,2));
 
         fieldsPanel.add(new JLabel("First name: "));
         var firstNameField = new JTextField(20);
@@ -57,7 +52,6 @@ public class AddContactDialog extends JPanel implements ActionListener {
         okButton.addActionListener(event ->
         {
             ArrayList<Object> row = new ArrayList<>();
-            row.add(table.getRowCount() + 1);
             row.add(firstNameField.getText());
             row.add(surnameField.getText());
             row.add(lastNameField.getText());
@@ -87,7 +81,6 @@ public class AddContactDialog extends JPanel implements ActionListener {
         addContactDialog.addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent e) {
-                number.setText(String.valueOf(table.getRowCount() + 1));
                 firstNameField.setText("");
                 surnameField.setText("");
                 lastNameField.setText("");
