@@ -1,5 +1,6 @@
 package com.hifeful.PhoneBook;
 
+import javax.imageio.ImageIO;
 import javax.swing.*;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.table.TableColumn;
@@ -11,6 +12,8 @@ import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.awt.event.WindowListener;
 import java.io.File;
+import java.io.IOException;
+import java.net.URLClassLoader;
 import java.util.prefs.Preferences;
 
 public class PhoneBookFrame extends JFrame {
@@ -26,14 +29,34 @@ public class PhoneBookFrame extends JFrame {
     private ContactsTableModel tableModel;
     private int[] columnsWidth = { 150, 150, 150, 150, 300};
 
+    private String dataFileName;
+    private boolean isSavedData;
+    private JMenuItem saveItem;
+
+    private String lastOpenFileLocation;
+    private String lastSaveFileLocation;
+
     public PhoneBookFrame()
     {
         root = Preferences.userRoot();
         node = root.node("/com/hifeful/PhoneBook");
 
+        isSavedData = false;
+
         frameProperties();
 
         createTable();
+
+        dataFileName = tableModel.getDataFile().getName();
+        if (dataFileName.contentEquals("") && !isSavedData)
+        {
+            setTitle("Phone Book (unsaved)");
+            isSavedData = true;
+        }
+        else if (!dataFileName.contentEquals("") && isSavedData)
+            setTitle("Phone book " + "(" + dataFileName + ")" + "(saved)");
+        else if (!dataFileName.contentEquals("") && !isSavedData)
+            setTitle("Phone book " + "(" + dataFileName + ")" + "(unsaved)");
 
         createMenu();
 
@@ -48,18 +71,55 @@ public class PhoneBookFrame extends JFrame {
         int top = node.getInt("top", 0);
         width = node.getInt("width", DEFAULT_WIDTH);
         height = node.getInt("height", DEFAULT_HEIGHT);
+        dataFileName = node.get("dataFile", "");
+        lastOpenFileLocation = node.get("lastOpenFileLocation", "");
+        lastSaveFileLocation = node.get("lastSaveFileLocation", "");
 
         setLocation(left, top);
 
         addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent e) {
-                node.putInt("left", getX());
-                node.putInt("top", getY());
-                node.putInt("width", getWidth());
-                node.putInt("height", getHeight());
 
-                System.exit(0);
+                if (isSavedData)
+                {
+                    node.putInt("left", getX());
+                    node.putInt("top", getY());
+                    node.putInt("width", getWidth());
+                    node.putInt("height", getHeight());
+
+                    if (tableModel.getDataFile().getName().contentEquals(""))
+                        node.put("dataFile", "");
+                    else
+                        node.put("dataFile", tableModel.getDataFile().getAbsolutePath());
+
+                    System.exit(0);
+                }
+                else
+                {
+                    int selection = JOptionPane.showConfirmDialog(null,
+                            "Do you want to save?", "New contact book",
+                            JOptionPane.YES_NO_CANCEL_OPTION, JOptionPane.QUESTION_MESSAGE);
+
+                    if (selection == JOptionPane.YES_OPTION)
+                    {
+                        saveItem.doClick();
+                    }
+                    else if (selection == JOptionPane.NO_OPTION)
+                    {
+                        node.putInt("left", getX());
+                        node.putInt("top", getY());
+                        node.putInt("width", getWidth());
+                        node.putInt("height", getHeight());
+
+                        if (tableModel.getDataFile().getName().contentEquals(""))
+                            node.put("dataFile", "");
+                        else
+                            node.put("dataFile", tableModel.getDataFile().getAbsolutePath());
+
+                        System.exit(0);
+                    }
+                }
             }
         });
     }
@@ -79,7 +139,7 @@ public class PhoneBookFrame extends JFrame {
         var openItem = new JMenuItem("Open", 'O');
         fileMenu.add(openItem);
 
-        var saveItem = new JMenuItem("Save", 'S');
+        saveItem = new JMenuItem("Save", 'S');
         fileMenu.add(saveItem);
 
         var saveAsItem = new JMenuItem("Save As");
@@ -87,7 +147,7 @@ public class PhoneBookFrame extends JFrame {
         {
             var fileChooser = new JFileChooser();
             fileChooser.setDialogTitle("Specify a file to save");
-            fileChooser.setCurrentDirectory(new File("."));
+            fileChooser.setCurrentDirectory(new File(lastSaveFileLocation));
             fileChooser.setFileFilter(new FileNameExtensionFilter("Data files (*.dat)", "dat"));
             fileChooser.setAcceptAllFileFilterUsed(false);
 
@@ -96,8 +156,16 @@ public class PhoneBookFrame extends JFrame {
             if (userSelection == JFileChooser.APPROVE_OPTION)
             {
                 File fileToSave = fileChooser.getSelectedFile();
+                lastSaveFileLocation = fileToSave.getAbsolutePath().substring(0, fileToSave.getAbsolutePath()
+                                                                                .lastIndexOf(File.separator));
+                node.put("lastSaveFileLocation", lastSaveFileLocation);
                 if (fileToSave.getAbsolutePath().endsWith(".dat"))
+                {
                     tableModel.saveData(fileToSave);
+                    isSavedData = true;
+                    dataFileName = tableModel.getDataFile().getName();
+                    setTitle("Phone book " + "(" + dataFileName + ")" + "(saved)");
+                }
                 else
                 {
                     JOptionPane.showMessageDialog(this,
@@ -113,12 +181,75 @@ public class PhoneBookFrame extends JFrame {
             if (!tableModel.getDataFile().exists())
                 saveAsItem.doClick();
             else
+            {
                 tableModel.saveData(tableModel.getDataFile());
+                isSavedData = true;
+                dataFileName = tableModel.getDataFile().getName();
+                setTitle("Phone book " + "(" + dataFileName + ")" + "(saved)");
+            }
         });
 
         newItem.addActionListener(event ->
         {
-            if (!tableModel.isEmpty())
+            if (!isSavedData)
+            {
+                if (!tableModel.isEmpty())
+                {
+                    int selection = JOptionPane.showConfirmDialog(this,
+                            "Do you want to save?", "New contact book",
+                            JOptionPane.YES_NO_CANCEL_OPTION, JOptionPane.QUESTION_MESSAGE);
+
+                    if (selection == JOptionPane.YES_OPTION)
+                    {
+                        saveItem.doClick();
+                    }
+                    else if (selection == JOptionPane.NO_OPTION)
+                    {
+                        tableModel.setDataFile(new File(""));
+                        isSavedData = false;
+                        setTitle("Phone Book (unsaved)");
+                        tableModel.clearRows();
+                        tableModel.fireTableDataChanged();
+                    }
+                }
+            }
+            else
+            {
+                tableModel.setDataFile(new File(""));
+                isSavedData = false;
+                setTitle("Phone Book (unsaved)");
+                tableModel.clearRows();
+                tableModel.fireTableDataChanged();
+            }
+
+        });
+
+        openItem.addActionListener(event ->
+        {
+            if (isSavedData)
+            {
+                var fileChooser = new JFileChooser();
+                fileChooser.setCurrentDirectory(new File(lastOpenFileLocation));
+                fileChooser.setFileFilter(new FileNameExtensionFilter("Data files (*.dat)", "dat"));
+                fileChooser.setAcceptAllFileFilterUsed(false);
+
+                int result = fileChooser.showOpenDialog(this);
+
+                if (result == JFileChooser.APPROVE_OPTION)
+                {
+                    File selectedFile = fileChooser.getSelectedFile();
+                    lastOpenFileLocation = selectedFile.getAbsolutePath().substring(0, selectedFile
+                                                                            .getAbsolutePath()
+                                                                            .lastIndexOf(File.separator));
+                    node.put("lastOpenFileLocation", lastOpenFileLocation);
+                    tableModel.openData(selectedFile);
+                    isSavedData = true;
+                    dataFileName = tableModel.getDataFile().getName();
+                    setTitle("Phone book " + "(" + dataFileName + ")" + "(saved)");
+                    tableModel.fireTableDataChanged();
+                }
+            }
+            else
             {
                 int selection = JOptionPane.showConfirmDialog(this,
                         "Do you want to save?", "New contact book",
@@ -130,28 +261,9 @@ public class PhoneBookFrame extends JFrame {
                 }
                 else if (selection == JOptionPane.NO_OPTION)
                 {
-                    tableModel.setDataFile(new File(""));
-                    tableModel.clearRows();
-                    tableModel.fireTableDataChanged();
+                    isSavedData = true;
+                    openItem.doClick();
                 }
-            }
-
-        });
-
-        openItem.addActionListener(event ->
-        {
-            var fileChooser = new JFileChooser();
-            fileChooser.setCurrentDirectory(new File("."));
-            fileChooser.setFileFilter(new FileNameExtensionFilter("Data files (*.dat)", "dat"));
-            fileChooser.setAcceptAllFileFilterUsed(false);
-
-            int result = fileChooser.showOpenDialog(this);
-
-            if (result == JFileChooser.APPROVE_OPTION)
-            {
-                File selectedFile = fileChooser.getSelectedFile();
-                tableModel.openData(selectedFile);
-                tableModel.fireTableDataChanged();
             }
         });
 
@@ -186,6 +298,12 @@ public class PhoneBookFrame extends JFrame {
                 tableModel.removeRow(selectedRows[i]);
             }
 
+            isSavedData = false;
+            if (tableModel.getDataFile().getName().contentEquals(""))
+                setTitle("Phone book " + "(" + "without file" + ")" + "(unsaved)");
+            else
+                setTitle("Phone book " + "(" + tableModel.getDataFile().getName() + ")" + "(unsaved)");
+
             tableModel.fireTableDataChanged();
         });
         buttonPanel.add(deleteButton);
@@ -195,8 +313,11 @@ public class PhoneBookFrame extends JFrame {
 
     private void createTable()
     {
-        tableModel = new ContactsTableModel();
+        tableModel = new ContactsTableModel(dataFileName);
         table = new JTable(tableModel);
+
+        isSavedData = !tableModel.getDataFile().getName().contentEquals("");
+
         table.getColumnModel().getColumn(1).setCellEditor(new TextCellEditor());
 
         var sorter = new TableRowSorter<TableModel>(tableModel);
@@ -213,5 +334,15 @@ public class PhoneBookFrame extends JFrame {
         }
 
         add(new JScrollPane(table), BorderLayout.CENTER);
+    }
+
+    public boolean getSavedData()
+    {
+        return isSavedData;
+    }
+
+    public void setSavedData(boolean aIsSavedData)
+    {
+        isSavedData = aIsSavedData;
     }
 }

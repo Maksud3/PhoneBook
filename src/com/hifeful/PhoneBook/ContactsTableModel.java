@@ -1,5 +1,6 @@
 package com.hifeful.PhoneBook;
 
+import javax.swing.*;
 import javax.swing.table.AbstractTableModel;
 import java.io.*;
 import java.util.ArrayList;
@@ -10,10 +11,17 @@ public class ContactsTableModel extends AbstractTableModel {
 
     private ArrayList<ArrayList<Object>> rows;
 
-    public ContactsTableModel()
+    public ContactsTableModel(String aDataFileName)
     {
         rows = new ArrayList<>();
-        dataFile = new File("");
+
+        if (aDataFileName.contentEquals(""))
+            dataFile = new File("");
+        else
+        {
+            dataFile = new File(aDataFileName);
+            openData(dataFile);
+        }
     }
 
     public int getRowCount()
@@ -105,7 +113,12 @@ public class ContactsTableModel extends AbstractTableModel {
         }
         catch (IOException | ClassNotFoundException e)
         {
-            e.printStackTrace();
+            JOptionPane.showMessageDialog(null,
+                    "The file cannot be open", "File open error",
+                    JOptionPane.ERROR_MESSAGE);
+
+            dataFile = new File("");
+
         }
     }
 }

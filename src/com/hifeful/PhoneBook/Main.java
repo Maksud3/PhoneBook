@@ -15,8 +15,8 @@ public class Main {
         EventQueue.invokeLater(() ->
         {
             var frame = new PhoneBookFrame();
-            frame.setTitle("Phone book");
-            frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+            frame.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
+            frame.setIconImage(new ImageIcon(Main.class.getResource("/images/icon.png")).getImage());
             frame.setVisible(true);
         });
     }

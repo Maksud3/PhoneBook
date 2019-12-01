@@ -13,7 +13,7 @@ public class AddContactDialog extends JPanel implements ActionListener {
 
     private JButton okButton;
 
-    public AddContactDialog(JFrame frame, ContactsTableModel aTable)
+    public AddContactDialog(PhoneBookFrame frame, ContactsTableModel aTable)
     {
         ownerFrame = frame;
         table = aTable;
@@ -59,6 +59,12 @@ public class AddContactDialog extends JPanel implements ActionListener {
             row.add(addressField.getText());
 
             table.addRow(row);
+
+            frame.setSavedData(false);
+            if (table.getDataFile().getName().contentEquals(""))
+                ownerFrame.setTitle("Phone book " + "(" + "without file" + ")" + "(unsaved)");
+            else
+                ownerFrame.setTitle("Phone book " + "(" + table.getDataFile().getName() + ")" + "(unsaved)");
 
             table.fireTableDataChanged();
 
