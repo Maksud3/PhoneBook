@@ -12,8 +12,6 @@ import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.awt.event.WindowListener;
 import java.io.File;
-import java.io.IOException;
-import java.net.URLClassLoader;
 import java.util.prefs.Preferences;
 
 public class PhoneBookFrame extends JFrame {
@@ -318,7 +316,8 @@ public class PhoneBookFrame extends JFrame {
 
         isSavedData = !tableModel.getDataFile().getName().contentEquals("");
 
-        table.getColumnModel().getColumn(1).setCellEditor(new TextCellEditor());
+        for (int i = 0; i < tableModel.getColumnCount(); i++)
+            table.getColumnModel().getColumn(i).setCellEditor(new TextCellEditor(this, tableModel));
 
         var sorter = new TableRowSorter<TableModel>(tableModel);
         sorter.setSortable(4, false);
